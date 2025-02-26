@@ -1,56 +1,56 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
-const clothingItems = ref([]);
+const route = useRoute();
+const id = route.params.id;
+const name = ref('');
+const category = ref('');
+const color = ref('');
+const isEditMode = !!id;
 const errorMessage = ref('');
 
-const fetchClothing = async () => {
+onMounted(async () => {
+  if (isEditMode) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://127.0.0.1:8000/api/clothing/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      name.value = response.data.name;
+      category.value = response.data.category;
+      color.value = response.data.color;
+    } catch (error) {
+      errorMessage.value = 'Error fetching clothing details!';
+    }
+  }
+});
+
+const saveClothing = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get('http://127.0.0.1:8000/api/clothing', {
+    const url = isEditMode ? `http://127.0.0.1:8000/api/clothing/${id}` : 'http://127.0.0.1:8000/api/clothing';
+    const method = isEditMode ? 'put' : 'post';
+
+    await axios[method](url, { name: name.value, category: category.value, color: color.value }, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    clothingItems.value = response.data;
+
+    router.push('/clothing');
   } catch (error) {
-    errorMessage.value = 'Error fetching clothing items!';
+    errorMessage.value = 'Error saving item!';
   }
 };
-
-const deleteClothing = async (id) => {
-  try {
-    const token = localStorage.getItem('token');
-    await axios.delete(`http://127.0.0.1:8000/api/clothing/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchClothing();
-  } catch (error) {
-    errorMessage.value = 'Error deleting item!';
-  }
-};
-
-onMounted(fetchClothing);
 </script>
 
 <template>
   <div>
-    <h2>Clothing List</h2>
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <button @click="router.push('/clothing/add')">Add New Clothing</button>
-    <ul>
-      <li v-for="item in clothingItems" :key="item.id">
-        {{ item.name }} - {{ item.category }} ({{ item.color }})
-        <button @click="router.push(`/clothing/edit/${item.id}`)">Edit</button>
-        <button @click="deleteClothing(item.id)">Delete</button>
-      </li>
-    </ul>
+    <h2>{{ isEditMode ? 'Edit Clothing' : 'Add Clothing' }}</h2>
+    <input v-model="name" type="text" placeholder="Name" />
+    <input v-model="category" type="text" placeholder="Category" />
+    <input v-model="color" type="text" placeholder="Color" />
+    <button @click="saveClothing">{{ isEditMode ? 'Update' : 'Save' }}</button>
   </div>
 </template>
-
-<style scoped>
-.error {
-  color: red;
-}
-</style>
